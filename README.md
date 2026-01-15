@@ -13,7 +13,7 @@ A GNOME Shell extension that adds a search provider to the Overview, allowing us
 ## 🚀 Usage
 
 1. Press the **Super** key (Windows key) to open the Overview.
-2. Type the names of the applications you want to open, separated by a semicolon `;`.
+2. Type the names of the applications you want to open, separated by a semicolon `;` or  "+".
    * *Example:* `firefox ; terminal ; files`
 3. A result named "Multi Launch" will appear.
 4. Press **Enter** to launch all of them.
