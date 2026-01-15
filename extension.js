@@ -3,7 +3,7 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Regex que identifica ponto e vírgula (;) OU sinal de mais (+)
+// Regex para identificar ; ou +
 const SEPARATOR_REGEX = /[;+]/;
 
 class MultiLaunchProvider {
@@ -14,29 +14,22 @@ class MultiLaunchProvider {
         this._pendingApps = []; 
     }
 
-    /**
-     * Chamado quando o usuário digita na barra de pesquisa.
-     */
     getInitialResultSet(terms) {
         this._pendingApps = [];
         const query = terms.join(' ');
 
-        // Verifica se existe algum dos separadores na string digitada
         if (!SEPARATOR_REGEX.test(query)) {
             return Promise.resolve([]);
         }
 
-        // Separa a string usando a Regex (corta onde tiver ; ou +)
         const appNames = query.split(SEPARATOR_REGEX)
                               .map(s => s.trim())
                               .filter(s => s.length > 0);
 
-        // Se tiver menos de 2 itens, ignoramos
         if (appNames.length < 2) {
             return Promise.resolve([]);
         }
 
-        // Busca os apps instalados
         const foundApps = [];
         const installedApps = this.appSystem.get_installed(); 
 
@@ -101,12 +94,19 @@ class MultiLaunchProvider {
 export default class MultiLaunchExtension extends Extension {
     enable() {
         this._provider = new MultiLaunchProvider(this);
-        Main.overview.viewSelector._searchResults.addProvider(this._provider);
+        
+        // CORREÇÃO: Usamos searchController em vez de viewSelector
+        // O searchController é o local correto nas versões modernas do GNOME
+        if (Main.overview.searchController) {
+             Main.overview.searchController._searchResults.addProvider(this._provider);
+        }
     }
 
     disable() {
         if (this._provider) {
-            Main.overview.viewSelector._searchResults.removeProvider(this._provider);
+            if (Main.overview.searchController) {
+                Main.overview.searchController._searchResults.removeProvider(this._provider);
+            }
             this._provider = null;
         }
     }
