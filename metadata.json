@@ -1,0 +1,8 @@
+{
+    "name": "Multi Launch Search",
+    "description": "Launch multiple apps from the overview by separating them with a semicolon (;)",
+    "uuid": "multilaunch@sobeitnow0",
+    "shell-version": [ "45", "46", "47" ],
+    "url": "",
+    "original-author": "sobeitnow0"
+}
