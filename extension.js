@@ -95,17 +95,18 @@ export default class MultiLaunchExtension extends Extension {
     enable() {
         this._provider = new MultiLaunchProvider(this);
         
-        // CORREÇÃO: Usamos searchController em vez de viewSelector
-        // O searchController é o local correto nas versões modernas do GNOME
+        // CORREÇÃO: Removemos o ._searchResults do caminho.
+        // Adicionamos o provedor diretamente ao searchController.
         if (Main.overview.searchController) {
-             Main.overview.searchController._searchResults.addProvider(this._provider);
+             Main.overview.searchController.addProvider(this._provider);
         }
     }
 
     disable() {
         if (this._provider) {
             if (Main.overview.searchController) {
-                Main.overview.searchController._searchResults.removeProvider(this._provider);
+                // Removemos do mesmo lugar onde adicionamos
+                Main.overview.searchController.removeProvider(this._provider);
             }
             this._provider = null;
         }
