@@ -3,7 +3,6 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Regex para identificar ; ou +
 const SEPARATOR_REGEX = /[;+]/;
 
 class MultiLaunchProvider {
@@ -34,16 +33,35 @@ class MultiLaunchProvider {
         const installedApps = this.appSystem.get_installed(); 
 
         for (const name of appNames) {
-            const lowerName = name.toLowerCase();
+            const lowerQuery = name.toLowerCase();
             
-            const match = installedApps.find(app => {
+            // LÓGICA DE AUTOCOMPLETE INTELIGENTE
+            // Filtramos todos os possíveis candidatos
+            const candidates = installedApps.filter(app => {
                 const id = app.get_id().toLowerCase();
                 const displayName = app.get_name().toLowerCase();
-                return id.includes(lowerName) || displayName.includes(lowerName);
+                return id.includes(lowerQuery) || displayName.includes(lowerQuery);
             });
 
-            if (match) {
-                foundApps.push(match);
+            // Ordenamos para encontrar o melhor candidato
+            candidates.sort((a, b) => {
+                const nameA = a.get_name().toLowerCase();
+                const nameB = b.get_name().toLowerCase();
+                
+                // 1. Prioridade máxima: Começa exatamente com o termo digitado
+                const startA = nameA.startsWith(lowerQuery);
+                const startB = nameB.startsWith(lowerQuery);
+
+                if (startA && !startB) return -1;
+                if (!startA && startB) return 1;
+
+                // 2. Critério de desempate: Menor nome (se digito 'term', prefiro 'Terminal' a 'Terminal Emulator Viewer')
+                return nameA.length - nameB.length;
+            });
+
+            // Pegamos o vencedor (o primeiro da lista ordenada)
+            if (candidates.length > 0) {
+                foundApps.push(candidates[0]);
             }
         }
 
@@ -62,11 +80,13 @@ class MultiLaunchProvider {
 
     getResultMetas(resultIds) {
         const metas = resultIds.map(id => {
+            // Mostra visualmente quais apps foram escolhidos
             const appNames = this._pendingApps.map(app => app.get_name()).join(' + ');
             
             return {
                 id: id,
                 name: 'Multi Launch',
+                // A descrição agora serve como confirmação visual do "Autocomplete"
                 description: `Open: ${appNames}`,
                 createIcon: (size) => {
                     return new St.Icon({
@@ -94,9 +114,6 @@ class MultiLaunchProvider {
 export default class MultiLaunchExtension extends Extension {
     enable() {
         this._provider = new MultiLaunchProvider(this);
-        
-        // CORREÇÃO: Removemos o ._searchResults do caminho.
-        // Adicionamos o provedor diretamente ao searchController.
         if (Main.overview.searchController) {
              Main.overview.searchController.addProvider(this._provider);
         }
@@ -105,7 +122,6 @@ export default class MultiLaunchExtension extends Extension {
     disable() {
         if (this._provider) {
             if (Main.overview.searchController) {
-                // Removemos do mesmo lugar onde adicionamos
                 Main.overview.searchController.removeProvider(this._provider);
             }
             this._provider = null;
