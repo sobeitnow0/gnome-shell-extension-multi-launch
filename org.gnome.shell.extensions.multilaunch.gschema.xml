@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-shell-extension-multi-launch">
+  <schema id="org.gnome.shell.extensions.multilaunch" path="/org/gnome/shell/extensions/multilaunch/">
+    
+    <key name="config-json" type="s">
+      <default>'{ "1": ["firefox", "org.gnome.Terminal"], "work": ["slack", "gedit"] }'</default>
+      <summary>Configuration of groups</summary>
+      <description>Json string containing the groups</description>
+    </key>
+
+  </schema>
+</schemalist>
