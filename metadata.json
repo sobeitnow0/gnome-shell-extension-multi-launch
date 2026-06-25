@@ -1,8 +1,10 @@
 {
     "name": "Multi Launch Search",
-    "description": "Launch multiple apps from the overview by separating them with a semicolon (;)",
+    "description": "Boost your productivity! Launch multiple applications and custom groups simultaneously right from the GNOME overview. Use separators like '+' or ';' to chain apps together.",
     "uuid": "multilaunch@sobeitnow0",
-    "shell-version": [ "45", "46", "47" ],
-    "url": "",
+    "shell-version": [ "45", "46", "47", "48", "49", "50" ],
+    "gettext-domain": "multilaunch",
+    "settings-schema": "org.gnome.shell.extensions.multilaunch",
+    "url": "https://github.com/sobeitnow0/gnome-shell-extension-multi-launch",
     "original-author": "sobeitnow0"
 }

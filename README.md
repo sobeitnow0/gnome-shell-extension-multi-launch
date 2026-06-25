@@ -1,4 +1,5 @@
 # Multi Launch Search Provider
+![Multi Launch Logo](logo.png)
 
 A GNOME Shell extension that allows launching multiple applications simultaneously from the Overview search, either manually or via custom groups.
 

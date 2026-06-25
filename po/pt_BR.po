@@ -1,0 +1,75 @@
+# Portuguese translations for PACKAGE package.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-24 17:53-0300\n"
+"PO-Revision-Date: 2026-06-24 17:53-0300\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: extension.js:126
+#, javascript-format
+msgid "Launch: %s"
+msgstr "Iniciar: %s"
+
+#: prefs.js:14
+msgid "General Settings"
+msgstr "Configurações Gerais"
+
+#: prefs.js:18
+msgid "Launch Delay (ms)"
+msgstr "Atraso de Lançamento (ms)"
+
+#: prefs.js:19
+msgid "Delay between launching multiple applications"
+msgstr "Atraso entre o lançamento de múltiplos aplicativos"
+
+#: prefs.js:35
+msgid "Groups Manager"
+msgstr "Gerenciador de Grupos"
+
+#: prefs.js:36
+msgid "Define the keyword and app list (comma separated)."
+msgstr "Defina a palavra-chave e a lista de apps (separados por vírgula)."
+
+#: prefs.js:50
+msgid "Create new group"
+msgstr "Criar novo grupo"
+
+#: prefs.js:51
+msgid "Click to add a new row"
+msgstr "Clique para adicionar uma nova linha"
+
+#: prefs.js:83
+msgid "New Group"
+msgstr "Novo Grupo"
+
+#: prefs.js:89
+msgid "Keyword"
+msgstr "Palavra-chave"
+
+#: prefs.js:94
+msgid "Applications"
+msgstr "Aplicativos"
+
+#: prefs.js:97
+msgid "(ex: firefox, calc)"
+msgstr "(ex: firefox, calc)"
+
+#: prefs.js:101
+msgid "Remove"
+msgstr "Remover"
+
+#: prefs.js:122
+msgid "No name"
+msgstr "Sem nome"

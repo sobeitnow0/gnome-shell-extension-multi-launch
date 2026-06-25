@@ -8,5 +8,11 @@
       <description>Json string containing the groups</description>
     </key>
 
+    <key name="launch-delay" type="i">
+      <default>0</default>
+      <summary>Launch delay</summary>
+      <description>Delay in milliseconds between launching each application</description>
+    </key>
+
   </schema>
 </schemalist>

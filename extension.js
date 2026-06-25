@@ -1,147 +1,148 @@
+import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Search from 'resource:///org/gnome/shell/ui/search.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const SEPARATOR_REGEX = /[;+]/;
 
-// BACKUP: Caso o arquivo de configuração falhe
-const FALLBACK_GROUPS = {
-    "1": ["firefox", "org.gnome.Terminal"],
-    "work": ["writer", "calc"]
-};
+export default class MultiLaunchExtension extends Extension {
+    enable() {
+        try {
+            this._provider = new MultiLaunchProvider(this);
+            Main.overview.searchController.addProvider(this._provider);
+        } catch (err) {
+            console.error('[MultiLaunch] Failed to enable search provider:', err);
+        }
+    }
+
+    disable() {
+        if (this._provider) {
+            Main.overview.searchController.removeProvider(this._provider);
+            this._provider.destroy();
+            this._provider = null;
+        }
+    }
+}
 
 class MultiLaunchProvider {
     constructor(extension) {
         this.extension = extension;
         this.id = 'multi-launch-provider';
         this.appSystem = Shell.AppSystem.get_default();
-        this._pendingApps = [];
-        this._appGroups = {};
+        this._pendingMatches = [];
+        this._groupCache = {};
+        this._timeoutIds = new Set();
+        this._settingsChangedId = null;
 
-        // Inicializa configurações
+        // Provide a valid AppInfo so GNOME Shell's search controller accepts this provider
+        this.appInfo = Gio.DesktopAppInfo.new('org.gnome.Extensions.desktop') || Gio.DesktopAppInfo.new('org.gnome.Settings.desktop');
+
         this._initSettings();
     }
 
     _initSettings() {
         try {
             this._settings = this.extension.getSettings('org.gnome.shell.extensions.multilaunch');
-            this._loadGroups();
-            this._settings.connect('changed::config-json', () => this._loadGroups());
+            this._loadGroupsFromSettings();
+            this._settingsChangedId = this._settings.connect('changed::config-json', () => this._loadGroupsFromSettings());
         } catch (e) {
-            console.error('[MultiLaunch] Erro no Schema. Usando backup.', e);
-            this._appGroups = FALLBACK_GROUPS;
+            console.error('[MultiLaunch] Failed to load settings. Proceeding with empty groups.', e);
+            this._groupCache = {};
         }
     }
 
-    _loadGroups() {
+    _loadGroupsFromSettings() {
         try {
-            const jsonString = this._settings.get_string('config-json');
-            this._appGroups = JSON.parse(jsonString);
+            const rawJson = this._settings.get_string('config-json');
+            this._groupCache = JSON.parse(rawJson);
         } catch (e) {
-            console.error('[MultiLaunch] Erro ao ler JSON.', e);
-            this._appGroups = FALLBACK_GROUPS;
+            console.error('[MultiLaunch] Invalid JSON in settings:', e);
+            this._groupCache = {};
         }
     }
 
     getInitialResultSet(terms) {
-        this._pendingApps = [];
-        // Junta os termos preservando espaços para identificar a frase completa
+        this._pendingMatches = [];
         const query = terms.join(' ').trim();
 
         if (!query) return Promise.resolve([]);
 
-        let targetAppNames = [];
-        let isGroupMatch = false;
+        let targets = [];
+        let isGroup = false;
 
-        // --- LÓGICA DE DECISÃO ---
-
-        // 1. Verifica se é um GRUPO exato (ex: "1", "trampo")
-        if (this._appGroups && this._appGroups.hasOwnProperty(query)) {
-            targetAppNames = this._appGroups[query];
-            isGroupMatch = true;
-        }
-        // 2. Se não for grupo, verifica se tem SEPARADORES (+ ou ;)
-        else if (SEPARATOR_REGEX.test(query)) {
-            targetAppNames = query.split(SEPARATOR_REGEX)
+        if (this._groupCache && this._groupCache[query]) {
+            targets = this._groupCache[query];
+            isGroup = true;
+        } else if (SEPARATOR_REGEX.test(query)) {
+            targets = query.split(SEPARATOR_REGEX)
                 .map(s => s.trim())
                 .filter(s => s.length > 0);
-        }
-        // 3. Se não for nada disso, sai.
-        else {
+        } else {
             return Promise.resolve([]);
         }
 
-        if (targetAppNames.length < 1) {
-            return Promise.resolve([]);
-        }
+        if (targets.length < 1) return Promise.resolve([]);
 
-        // --- BUSCA DOS APPS (Smart Matching) ---
-        const foundApps = [];
-        const installedApps = this.appSystem.get_installed();
+        const results = [];
+        const allApps = this.appSystem.get_installed();
 
-        for (const name of targetAppNames) {
-            const lowerQuery = name.toLowerCase();
+        for (const target of targets) {
+            const parts = target.split(' ');
+            const searchName = parts[0].toLowerCase();
+            const launchArgs = parts.slice(1);
 
-            // Filtra candidatos (busca no ID e no Nome)
-            const candidates = installedApps.filter(app => {
-                const id = app.get_id().toLowerCase();
-                const displayName = app.get_name().toLowerCase();
-                return id.includes(lowerQuery) || displayName.includes(lowerQuery);
+            const matches = allApps.filter(app => {
+                const appId = app.get_id().toLowerCase();
+                const appName = app.get_name().toLowerCase();
+                return appId.includes(searchName) || appName.includes(searchName);
             });
 
-            // Ordena (Começa com > Tamanho menor)
-            candidates.sort((a, b) => {
+            matches.sort((a, b) => {
                 const nameA = a.get_name().toLowerCase();
                 const nameB = b.get_name().toLowerCase();
-
-                const startA = nameA.startsWith(lowerQuery);
-                const startB = nameB.startsWith(lowerQuery);
-
-                if (startA && !startB) return -1;
-                if (!startA && startB) return 1;
-
+                
+                if (nameA.startsWith(searchName) && !nameB.startsWith(searchName)) return -1;
+                if (!nameA.startsWith(searchName) && nameB.startsWith(searchName)) return 1;
+                
                 return nameA.length - nameB.length;
             });
 
-            if (candidates.length > 0) {
-                foundApps.push(candidates[0]);
+            if (matches.length > 0) {
+                results.push({ app: matches[0], args: launchArgs, rawInput: target });
             }
         }
 
-        this._pendingApps = foundApps;
+        this._pendingMatches = results;
 
-        // --- REGRA DE EXIBIÇÃO ---
-        if (this._pendingApps.length > 0) {
-            // Se for GRUPO: Mostra sempre (mesmo se for 1 app)
-            if (isGroupMatch) {
-                return Promise.resolve(['multi-launch-result']);
-            }
-            // Se for MANUAL: Só mostra se tiver 2 ou mais apps
-            // (Isso evita duplicar o resultado da pesquisa padrão do GNOME)
-            else if (this._pendingApps.length > 1) {
-                return Promise.resolve(['multi-launch-result']);
+        if (this._pendingMatches.length > 0) {
+            if (isGroup || this._pendingMatches.length > 1) {
+                return Promise.resolve([this.id]);
             }
         }
 
         return Promise.resolve([]);
     }
 
-    getSubsearchResultSet(previousResults, terms) {
+    getSubsearchResultSet(prev, terms) {
         return this.getInitialResultSet(terms);
     }
 
     getResultMetas(resultIds) {
         const metas = resultIds.map(id => {
-            const appNames = this._pendingApps.map(app => app.get_name()).join(' + ');
+            const combinedNames = this._pendingMatches.map(m => m.rawInput).join(' + ');
 
             return {
                 id: id,
                 name: 'Multi Launch',
-                description: `Run: ${appNames}`, // Texto descritivo
+                description: `Launch: ${combinedNames}`,
                 createIcon: (size) => {
+                    if (this._pendingMatches.length > 0) {
+                        return this._pendingMatches[0].app.create_icon_texture(size);
+                    }
                     return new St.Icon({
-                        // ALTERAÇÃO: Ícone de engrenagem/executar
                         icon_name: 'system-run-symbolic',
                         width: size,
                         height: size
@@ -152,35 +153,62 @@ class MultiLaunchProvider {
         return Promise.resolve(metas);
     }
 
-    filterResults(results, maxNumber) {
-        return results.slice(0, maxNumber);
+    createResultObject(resultMeta) {
+        return new Search.ListSearchResult(this, resultMeta);
     }
 
-    activateResult(resultId, terms) {
-        this._pendingApps.forEach(app => {
-            app.launch([], null);
+    filterResults(results, max) {
+        return results.slice(0, max);
+    }
+
+    activateResult(id, terms) {
+        let delayMs = 0;
+        if (this._settings) {
+            delayMs = this._settings.get_int('launch-delay');
+        }
+
+        this._pendingMatches.forEach((match, idx) => {
+            const performLaunch = () => {
+                if (match.args && match.args.length > 0) {
+                    try {
+                        const appInfo = match.app.get_app_info();
+                        appInfo.launch_uris(match.args, null);
+                    } catch (err) {
+                        console.error('[MultiLaunch] Warning: failed to pass args, launching normally.', err);
+                        match.app.launch([], -1, -1);
+                    }
+                } else {
+                    match.app.launch([], -1, -1);
+                }
+            };
+
+            if (delayMs > 0 && idx > 0) {
+                const timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs * idx, () => {
+                    performLaunch();
+                    this._timeoutIds.delete(timerId);
+                    return GLib.SOURCE_REMOVE;
+                });
+                this._timeoutIds.add(timerId);
+            } else {
+                performLaunch();
+            }
         });
     }
-}
 
-export default class MultiLaunchExtension extends Extension {
-    enable() {
-        try {
-            this._provider = new MultiLaunchProvider(this);
-            if (Main.overview.searchController) {
-                Main.overview.searchController.addProvider(this._provider);
-            }
-        } catch (e) {
-            console.error('[MultiLaunch] Erro fatal:', e);
+    destroy() {
+        if (this._settings && this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
         }
-    }
+        for (const timerId of this._timeoutIds) {
+            GLib.source_remove(timerId);
+        }
+        this._timeoutIds.clear();
 
-    disable() {
-        if (this._provider) {
-            if (Main.overview.searchController) {
-                Main.overview.searchController.removeProvider(this._provider);
-            }
-            this._provider = null;
-        }
+        this._settings = null;
+        this._groupCache = null;
+        this._pendingMatches = null;
+        this.extension = null;
+        this.appSystem = null;
     }
 }
